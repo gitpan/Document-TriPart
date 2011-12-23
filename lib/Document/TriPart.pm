@@ -1,46 +1,15 @@
 package Document::TriPart;
+BEGIN {
+  $Document::TriPart::VERSION = '0.024';
+}
+# ABSTRACT: Read, write & edit a tri-part document (preamble, YAML::Tiny header, and body)
+
 
 use warnings;
 use strict;
 
-=head1 NAME
 
-Document::TriPart - Read, write & edit a tri-part document (preamble, YAML::Tiny header, and body)
-
-=head1 VERSION
-
-Version 0.022
-
-=cut
-
-our $VERSION = '0.022';
-
-=head1 SYNOPSIS
-
-    my $document;
-    $document = Document::TriPart::->read( \<<_END_ ); # Or you can use ->read_string( ... )
-    # vim: #
-    ---
-    hello: world
-    ---
-    This is the body
-    _END_
-
-    $document->preamble   "# vim: #\n"
-    $document->header     { hello => world }
-    $document->body       "This is the body\n"
-
-=head1 DESCRIPTION
-
-This distribution is meant to take the headache out of reading, writing, and editing
-"interesting" documents. That is, documents with both content and meta-data (via YAML::Tiny)
-
-More documentation coming soon, check out the code and tests for usage and examples. This is pretty beta, so
-the interface might change.
-
-=cut
-
-use Moose;
+use Any::Moose;
 
 use File::AtomicWrite;
 use File::Temp qw/tempfile/;
@@ -48,6 +17,8 @@ use IO::Scalar;
 use Carp::Clan;
 use Path::Class();
 use YAML::Tiny();
+
+our $TriPart = 1;
 
 has file => qw/is rw/;
 has atomic => qw/is rw/, default => 1;
@@ -233,9 +204,10 @@ sub read_file {
     }
     else {
         my @part;
+	my $part_limit = $TriPart ? 2 : 1;
         while (1) {
             my ($more, $content);
-            if (2 > @part) {
+            if ( $part_limit > @part ) {
                 ($more, $content) = $self->_read_until_separator( $read );
             }
             else {
@@ -292,7 +264,7 @@ sub _parse_header {
     my $content = shift;
 
     # TODO Parsing of: { "a": "1" } does not work
-    chomp $$content if $$content =~ m/^\s*\{/;
+    chomp $$content if defined $$content && $$content =~ m/^\s*\{/;
 
     return {} unless my $header = YAML::Tiny->read_string($$content);
     return $header->[0];
@@ -341,9 +313,10 @@ sub edit {
     unless (defined $file) {
         ($tmp_fh, $tmp_filename) = tempfile;
         $file = $tmp_filename;
-    }
 
-    $self->write( $file, @_ );
+        # Only write out the file first if we're using a temporary file
+        $self->write( $file, @_ );
+    }
 
     _edit_file $file;
 
@@ -352,60 +325,50 @@ sub edit {
 
 1;
 
+__END__
+=pod
+
+=head1 NAME
+
+Document::TriPart - Read, write & edit a tri-part document (preamble, YAML::Tiny header, and body)
+
+=head1 VERSION
+
+version 0.024
+
+=head1 SYNOPSIS
+
+    my $document;
+    $document = Document::TriPart::->read( \<<_END_ ); # Or you can use ->read_string( ... )
+    # vim: #
+    ---
+    hello: world
+    ---
+    This is the body
+    _END_
+
+    $document->preamble   "# vim: #\n"
+    $document->header     { hello => world }
+    $document->body       "This is the body\n"
+
+=head1 DESCRIPTION
+
+This distribution is meant to take the headache out of reading, writing, and editing
+"interesting" documents. That is, documents with both content and meta-data (via YAML::Tiny)
+
+More documentation coming soon, check out the code and tests for usage and examples. This is pretty beta, so
+the interface might change.
+
 =head1 AUTHOR
 
-Robert Krimen, C<< <rkrimen at cpan.org> >>
+Robert Krimen <robertkrimen@gmail.com>
 
-=head1 BUGS
+=head1 COPYRIGHT AND LICENSE
 
-Please report any bugs or feature requests to C<bug-document-tripart at rt.cpan.org>, or through
-the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Document-TriPart>.  I will be notified, and then you'll
-automatically be notified of progress on your bug as I make changes.
+This software is copyright (c) 2011 by Robert Krimen.
 
-
-
-
-=head1 SUPPORT
-
-You can find documentation for this module with the perldoc command.
-
-    perldoc Document::TriPart
-
-
-You can also look for information at:
-
-=over 4
-
-=item * RT: CPAN's request tracker
-
-L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=Document-TriPart>
-
-=item * AnnoCPAN: Annotated CPAN documentation
-
-L<http://annocpan.org/dist/Document-TriPart>
-
-=item * CPAN Ratings
-
-L<http://cpanratings.perl.org/d/Document-TriPart>
-
-=item * Search CPAN
-
-L<http://search.cpan.org/dist/Document-TriPart/>
-
-=back
-
-
-=head1 ACKNOWLEDGEMENTS
-
-
-=head1 COPYRIGHT & LICENSE
-
-Copyright 2009 Robert Krimen, all rights reserved.
-
-This program is free software; you can redistribute it and/or modify it
-under the same terms as Perl itself.
-
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
 
 =cut
 
-1; # End of Document::TriPart

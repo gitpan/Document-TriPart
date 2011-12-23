@@ -1,44 +1,59 @@
-use inc::Module::Install;
 
-name     'Document-TriPart';
-all_from 'lib/Document/TriPart.pm';
-author   'Robert Krimen <rkrimen@cpan.org>';
-license  'perl';
+use strict;
+use warnings;
 
-resources repository => 'http://github.com/robertkrimen/Document-TriPart/tree/master';
 
-{
-    require ExtUtils::MakeMaker;
-    use strict;
-    no strict 'refs';
 
-    my $libscan = \&{"ExtUtils::MM_Any::libscan"};
-    *{"ExtUtils::MM_Any::libscan"} = sub {
-        return '' unless $libscan->(@_);
-        return '' if $_[1] =~ /\.sw[p-z]$/;
-        return $_[1];
-    };
+use ExtUtils::MakeMaker 6.30;
+
+
+
+my %WriteMakefileArgs = (
+  'ABSTRACT' => 'Read, write & edit a tri-part document (preamble, YAML::Tiny header, and body)',
+  'AUTHOR' => 'Robert Krimen <robertkrimen@gmail.com>',
+  'BUILD_REQUIRES' => {
+    'Test::Most' => '0'
+  },
+  'CONFIGURE_REQUIRES' => {
+    'ExtUtils::MakeMaker' => '6.30'
+  },
+  'DISTNAME' => 'Document-TriPart',
+  'EXE_FILES' => [],
+  'LICENSE' => 'perl',
+  'NAME' => 'Document::TriPart',
+  'PREREQ_PM' => {
+    'Any::Moose' => '0',
+    'Carp::Clan' => '0',
+    'File::AtomicWrite' => '0',
+    'File::Temp' => '0',
+    'IO::Scalar' => '0',
+    'Path::Class' => '0',
+    'YAML::Tiny' => '0'
+  },
+  'VERSION' => '0.024',
+  'test' => {
+    'TESTS' => 't/*.t'
+  }
+);
+
+
+unless ( eval { ExtUtils::MakeMaker->VERSION(6.56) } ) {
+  my $br = delete $WriteMakefileArgs{BUILD_REQUIRES};
+  my $pp = $WriteMakefileArgs{PREREQ_PM};
+  for my $mod ( keys %$br ) {
+    if ( exists $pp->{$mod} ) {
+      $pp->{$mod} = $br->{$mod} if $br->{$mod} > $pp->{$mod};
+    }
+    else {
+      $pp->{$mod} = $br->{$mod};
+    }
+  }
 }
 
-{
-    map { my ($pk, $vr) = split m/\s/; build_requires $pk => $vr || 0 } grep { ! /^\s*#/ } split m/\n/, <<_END_;
-Test::Most
-_END_
+delete $WriteMakefileArgs{CONFIGURE_REQUIRES}
+  unless eval { ExtUtils::MakeMaker->VERSION(6.52) };
 
-    map { my ($pk, $vr) = split m/\s/; requires $pk => $vr || 0 } grep { ! /^\s*#/ } split m/\n/, <<_END_;
-Carp::Clan
-File::AtomicWrite
-File::Temp
-IO::Scalar
-Moose
-Path::Class
-YAML::Tiny
-_END_
-}
+WriteMakefile(%WriteMakefileArgs);
 
-if (-e 'inc/.author') {
-    my $all_from = join '/', 'lib', split m/-/, name . '.pm';
-    `perldoc -tF $all_from > README` if ! -e 'README' || (stat $all_from)[9] > (stat 'README')[9];
-}
 
-WriteAll;
+
